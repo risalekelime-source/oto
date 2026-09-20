@@ -79,7 +79,7 @@ if ('serviceWorker' in navigator) {
     <label>Şifre</label>
     <input id="loginPass" type="password" placeholder="••••">
     <button class="btn" style="width:100%" onclick="doLogin()">Giriş Yap</button>
-    <p class="muted" style="margin-top:14px">Varsayılan yönetici: <b>admin / admin123</b><br>Varsayılan kullanıcı: <b>kullanici / 12345</b></p>
+
   </div>
 </div>
 
@@ -96,6 +96,7 @@ if ('serviceWorker' in navigator) {
     <button data-page="vehicles" class="active" onclick="goPage('vehicles')">Araçlar</button>
     <button data-page="addVehicle" onclick="goPage('addVehicle')">Araç Ekle</button>
     <button data-page="partners" onclick="goPage('partners')">Ortaklar</button>
+    <button data-page="users" onclick="goPage('users')">Kullanıcılar</button>
     <button data-page="reports" onclick="goPage('reports')">Raporlar</button>
   </nav>
   <main>
@@ -133,6 +134,7 @@ async function syncTable(table, rows, idCol){
 }
 async function persistStore(d){
   try {
+    await syncTable('users',    d.users,    'id');
     await syncTable('partners', d.partners, 'id');
     await syncTable('vehicles', d.vehicles, 'id');
     await syncTable('costs',    d.costs,    'id');
@@ -155,9 +157,9 @@ async function loadStore(){
   store.vehicles = v.data    || [];
   store.costs    = c.data    || [];
   if(!store.users.length){
-    // İlk kurulum: varsayılan kullanıcılar
-    store.users = [{id:1,username:'admin',password:'admin123',role:'admin'},
-                   {id:2,username:'kullanici',password:'12345',role:'user'}];
+    // Kullanıcı yok: ilk kurulum ekranını göster
+    showFirstSetup();
+    return;
   }
   if(!store.partners.length){
     // İlk kurulum: varsayılan ortaklar
@@ -183,6 +185,7 @@ function autoLoginIfSession(){
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('whoami').textContent = session.username + ' (' + (session.role==='admin'?'Yönetici':'Kullanıcı') + ')';
   document.querySelector('button[data-page="partners"]').style.display = session.role==='admin' ? '' : 'none';
+  document.querySelector('button[data-page="users"]').style.display = session.role==='admin' ? '' : 'none';
   goPage('vehicles');
 }
 let currentPage = 'vehicles';
@@ -204,6 +207,38 @@ function vehicleCalc(v){
   return {costs, costTotal, allIn, sale, profit};
 }
 
+/* ==================== İLK KURULUM ==================== */
+function showFirstSetup(){
+  document.getElementById('loginMsg').innerHTML = `
+    <div class="msg msg-ok" style="background:#e3f0ff;color:#1565c0">
+      İlk kurulum: sistemde kullanıcı yok. Yönetici hesabı oluşturun.
+    </div>
+    <label>Kullanıcı Adı</label>
+    <input id="setupUser" placeholder="yönetici adı">
+    <label>Şifre</label>
+    <input id="setupPass" type="password" placeholder="••••">
+    <button class="btn" style="width:100%;margin-top:4px" onclick="setupAdmin()">Yönetici Oluştur</button>`;
+}
+async function setupAdmin(){
+  const u = document.getElementById('setupUser').value.trim();
+  const p = document.getElementById('setupPass').value;
+  if(!u || !p){ showLoginMsg('Kullanıcı adı ve şifre zorunludur.','err'); return; }
+  store.users = [{id:1, username:u, password:p, role:'admin'}];
+  try {
+    await syncTable('users', store.users, 'id');
+    session = {username:u, role:'admin'};
+    localStorage.setItem('otoSession', JSON.stringify(session));
+    if(!store.partners.length){
+      store.partners = [{id:1,name:'Ortak A',ratio:50},{id:2,name:'Ortak B',ratio:50}];
+      await syncTable('partners', store.partners, 'id');
+    }
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('whoami').textContent = u + ' (Yönetici)';
+    goPage('vehicles');
+  } catch(e){ showLoginMsg('Kayıt hatası: '+e.message,'err'); }
+}
+
 /* ==================== GİRİŞ / ÇIKIŞ ==================== */
 async function doLogin(){
   const u = document.getElementById('loginUser').value.trim();
@@ -218,6 +253,7 @@ async function doLogin(){
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('whoami').textContent = user.username + ' (' + (user.role==='admin'?'Yönetici':'Kullanıcı') + ')';
   document.querySelector('button[data-page="partners"]').style.display = user.role==='admin' ? '' : 'none';
+  document.querySelector('button[data-page="users"]').style.display = user.role==='admin' ? '' : 'none';
   goPage('vehicles');
 }
 function showLoginMsg(t,type){
@@ -234,6 +270,7 @@ function goPage(page){
   if(page==='vehicles') renderVehicles(c);
   else if(page==='addVehicle') renderAddVehicle(c);
   else if(page==='partners') renderPartners(c);
+  else if(page==='users') renderUsers(c);
   else if(page==='reports') renderReports(c);
   else if(page.startsWith('detail:')) renderDetail(c, page.split(':')[1]);
   window.scrollTo(0,0);
@@ -427,6 +464,62 @@ function deleteCost(cid, vid){
   const d = db();
   d.costs = d.costs.filter(x=>x.id!==cid);
   save(d); goPage('detail:'+vid);
+}
+
+/* ==================== KULLANICILAR (Yönetici) ==================== */
+function renderUsers(c){
+  if(session.role!=='admin'){ goPage('vehicles'); return; }
+  const d = db();
+  c.innerHTML = `
+  <div class="card">
+    <h2>Kullanıcılar</h2>
+    <table>
+      <thead><tr><th>Kullanıcı Adı</th><th>Rol</th><th></th></tr></thead>
+      <tbody>
+      ${d.users.map(u=>`<tr>
+        <td><b>${esc(u.username)}</b>${u.username===session.username?' <span class="badge badge-blue">siz</span>':''}</td>
+        <td>${u.role==='admin'?'<span class="badge badge-red">Yönetici</span>':'<span class="badge badge-green">Kullanıcı</span>'}</td>
+        <td>${u.username!==session.username?`<span class="link" onclick="deleteUser(${u.id})">Sil</span>`:'<span class="muted">—</span>'}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="card" style="max-width:480px">
+    <h2>Yeni Kullanıcı Ekle</h2>
+    <div id="uMsg"></div>
+    <label>Kullanıcı Adı *</label>
+    <input id="uName" placeholder="örn. ahmet">
+    <label>Şifre *</label>
+    <input id="uPass" type="text" placeholder="••••">
+    <label>Rol *</label>
+    <select id="uRole">
+      <option value="user">Kullanıcı (araç/maliyet ekler)</option>
+      <option value="admin">Yönetici (tüm yetkiler)</option>
+    </select>
+    <button class="btn" onclick="addUser()">Kullanıcı Ekle</button>
+  </div>`;
+}
+function addUser(){
+  const name = document.getElementById('uName').value.trim();
+  const pass = document.getElementById('uPass').value;
+  const role = document.getElementById('uRole').value;
+  const d = db();
+  if(!name){ showMsg('uMsg','Kullanıcı adı zorunludur.','err'); return; }
+  if(!pass){ showMsg('uMsg','Şifre zorunludur.','err'); return; }
+  if(d.users.some(u=>u.username===name)){ showMsg('uMsg','Bu kullanıcı adı zaten kullanılıyor.','err'); return; }
+  const id = d.users.length? Math.max(...d.users.map(u=>u.id))+1 : 1;
+  d.users.push({id, username:name, password:pass, role});
+  save(d);
+  syncTable('users', d.users, 'id').then(()=>goPage('users'));
+  goPage('users');
+}
+function deleteUser(uid){
+  const d = db();
+  if(!confirm('Kullanıcı silinsin mi?')) return;
+  d.users = d.users.filter(u=>u.id!==uid);
+  save(d);
+  syncTable('users', d.users, 'id').then(()=>goPage('users'));
+  goPage('users');
 }
 
 /* ==================== ORTAKLAR (Yönetici) ==================== */
