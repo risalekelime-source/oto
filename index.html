@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oto Alım-Satım Ortaklık Yönetimi</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',Roboto,sans-serif}
+  :root{--primary:#1a73e8;--dark:#0d47a1;--bg:#f4f6f9;--card:#fff;--ok:#2e7d32;--warn:#c62828;--gray:#666}
+  body{background:var(--bg);color:#222}
+  .hidden{display:none!important}
+  /* ---------- LOGIN ---------- */
+  #loginScreen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#0d47a1,#1a73e8)}
+  .login-box{background:#fff;padding:40px;border-radius:16px;width:360px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+  .login-box h1{font-size:22px;margin-bottom:6px;color:var(--dark)}
+  .login-box p{color:var(--gray);font-size:13px;margin-bottom:20px}
+  /* ---------- LAYOUT ---------- */
+  header{background:var(--dark);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  header h1{font-size:18px}
+  nav{background:#fff;border-bottom:1px solid #ddd;display:flex;overflow-x:auto}
+  nav button{padding:14px 22px;background:none;border:none;font-size:14px;cursor:pointer;color:#444;border-bottom:3px solid transparent;white-space:nowrap}
+  nav button.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+  main{max-width:1000px;margin:24px auto;padding:0 16px}
+  .card{background:var(--card);border-radius:12px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+  .card h2{font-size:18px;margin-bottom:16px;color:var(--dark)}
+  label{display:block;font-size:13px;color:#555;margin-bottom:4px;font-weight:600}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid #ccc;border-radius:8px;font-size:14px;margin-bottom:14px}
+  textarea{resize:vertical}
+  .btn{background:var(--primary);color:#fff;border:none;padding:11px 22px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:600}
+  .btn:hover{background:var(--dark)}
+  .btn-sm{padding:6px 12px;font-size:12px}
+  .btn-green{background:var(--ok)} .btn-red{background:var(--warn)}
+  .btn-gray{background:#777}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{padding:10px 8px;text-align:left;border-bottom:1px solid #eee}
+  th{background:#f0f4fa;color:#333;font-weight:600}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row > div{flex:1;min-width:160px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+  .badge-blue{background:#e3f0ff;color:#1565c0}.badge-green{background:#e6f4ea;color:#2e7d32}
+  .badge-orange{background:#fff3e0;color:#ef6c00}.badge-red{background:#ffebee;color:#c62828}
+  .stat{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:20px}
+  .stat-box{flex:1;min-width:150px;background:#fff;border-radius:12px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.06);text-align:center}
+  .stat-box .num{font-size:24px;font-weight:700;color:var(--dark)}
+  .stat-box .lbl{font-size:12px;color:var(--gray);margin-top:4px}
+  .msg{padding:10px 14px;border-radius:8px;margin-bottom:14px;font-size:13px}
+  .msg-ok{background:#e6f4ea;color:#2e7d32}.msg-err{background:#ffebee;color:#c62828}
+  .toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .toolbar input,.toolbar select{width:auto;flex:1;min-width:140px;margin-bottom:0}
+  .total-row{font-weight:700;background:#f0f4fa}
+  .muted{color:#888;font-size:12px}
+  .profit-pos{color:var(--ok);font-weight:700}.profit-neg{color:var(--warn);font-weight:700}
+  .link{color:var(--primary);cursor:pointer;text-decoration:underline}
+  .progress{height:10px;background:#eee;border-radius:6px;overflow:hidden;margin:6px 0 16px}
+  .progress > div{height:100%;background:var(--primary)}
+</style>
+<base target="_blank">
+<base target="_blank">
+</head>
+<body>
+
+<!-- ============ GİRİŞ EKRANI ============ -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>🚗 Oto Ortaklık Yönetimi</h1>
+    <p>Alım-satım kar ve ortaklık takip sistemi</p>
+    <div id="loginMsg"></div>
+    <label>Kullanıcı Adı</label>
+    <input id="loginUser" placeholder="kullanıcı adı">
+    <label>Şifre</label>
+    <input id="loginPass" type="password" placeholder="••••">
+    <button class="btn" style="width:100%" onclick="doLogin()">Giriş Yap</button>
+    <p class="muted" style="margin-top:14px">Varsayılan yönetici: <b>admin / admin123</b><br>Varsayılan kullanıcı: <b>kullanici / 12345</b></p>
+  </div>
+</div>
+
+<!-- ============ ANA UYGULAMA ============ -->
+<div id="app" class="hidden">
+  <header>
+    <h1>🚗 Oto Ortaklık Yönetimi</h1>
+    <div>
+      <span id="whoami" style="font-size:13px;margin-right:12px"></span>
+      <button class="btn btn-red btn-sm" onclick="doLogout()">Çıkış</button>
+    </div>
+  </header>
+  <nav id="mainNav">
+    <button data-page="vehicles" class="active" onclick="goPage('vehicles')">Araçlar</button>
+    <button data-page="addVehicle" onclick="goPage('addVehicle')">Araç Ekle</button>
+    <button data-page="partners" onclick="goPage('partners')">Ortaklar</button>
+    <button data-page="reports" onclick="goPage('reports')">Raporlar</button>
+  </nav>
+  <main>
+    <div id="pageContent"></div>
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* Supabase veri katmanı: uygulamanın mevcut ekranlarını koruyarak
+   araç, maliyet ve ortak kayıtlarını gerçek veritabanında saklar. */
+/* ================================================================
+   SUPABASE VERİ KATMANI
+   Tüm veriler Supabase tablolarında saklanır (users, partners,
+   vehicles, costs). save() çağrısı yapıldığında değişiklikler
+   otomatik olarak veritabanına senkronize edilir.
+================================================================ */
+const SUPABASE_URL = 'https://weujqcrsqzkekhggqwrs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_7LANeeQ-1MGRIhZx1MxYEQ_VYHS7RiK';
+const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let store = {users:[], partners:[], vehicles:[], costs:[]};
+let dataReady = false;
+
+function db(){ return store; }
+function save(d){ store = d; void persistStore(d); }
+
+// Tüm tabloları yerel durumla senkronize et: silinenleri kaldır, gerisini upsert et
+async function syncTable(table, rows, idCol){
+  const {data: existing} = await sbClient.from(table).select(idCol);
+  const keep = new Set(rows.map(r=>r[idCol]));
+  const toDelete = (existing||[]).map(r=>r[idCol]).filter(id=>!keep.has(id));
+  if(toDelete.length) await sbClient.from(table).delete().in(idCol, toDelete);
+  if(rows.length) await sbClient.from(table).upsert(rows);
+}
+async function persistStore(d){
+  await syncTable('partners', d.partners, 'id');
+  await syncTable('vehicles', d.vehicles, 'id');
+  await syncTable('costs',    d.costs,    'id');
+}
+
+async function loadStore(){
+  const [u, p, v, c] = await Promise.all([
+    sbClient.from('users').select('*'),
+    sbClient.from('partners').select('*'),
+    sbClient.from('vehicles').select('*'),
+    sbClient.from('costs').select('*')
+  ]);
+  if(u.error||p.error||v.error||c.error) throw new Error('Tablolar yüklenemedi');
+  store.users    = u.data    || [];
+  store.partners = p.data    || [];
+  store.vehicles = v.data    || [];
+  store.costs    = c.data    || [];
+  if(!store.users.length){
+    // İlk kurulum: varsayılan kullanıcılar
+    store.users = [{id:1,username:'admin',password:'admin123',role:'admin'},
+                   {id:2,username:'kullanici',password:'12345',role:'user'}];
+  }
+  if(!store.partners.length){
+    // İlk kurulum: varsayılan ortaklar
+    store.partners = [{id:1,name:'Ortak A',ratio:50},{id:2,name:'Ortak B',ratio:50}];
+  }
+  await syncTable('users', store.users, 'id');
+  await syncTable('partners', store.partners, 'id');
+  dataReady = true;
+  if(typeof goPage==='function') goPage(currentPage);
+}
+function seedDB(){ return store; }
+void loadStore().catch(error=>{
+  console.error('Supabase bağlantı hatası:', error);
+  document.getElementById('loginMsg').innerHTML = '<div class="msg msg-err">Veritabanı bağlantısı kurulamadı. Tabloları oluşturduğunuzdan emin olun.</div>';
+});
+
+let session = null;
+let currentPage = 'vehicles';
+let filterStatus = 'all', filterPartner = 'all', searchText = '';
+
+/* ==================== YARDIMCILAR ==================== */
+const fmt = n => new Intl.NumberFormat('tr-TR',{style:'currency',currency:'TRY'}).format(n||0);
+const esc = s => String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function partnerById(id){ return db().partners.find(p=>p.id==id); }
+function vehicleById(id){ return db().vehicles.find(v=>v.id==id); }
+function vehicleCosts(vid){ return db().costs.filter(c=>c.vehicleId==vid); }
+function partnerPaid(vid, pid){ return db().costs.filter(c=>c.vehicleId==vid && c.paidBy==pid).reduce((s,c)=>s+Number(c.amount),0); }
+function vehicleCalc(v){
+  const costs = vehicleCosts(v.id);
+  const costTotal = costs.reduce((s,c)=>s+Number(c.amount),0);
+  const allIn = Number(v.purchasePrice) + costTotal;
+  const sale = v.salePrice ? Number(v.salePrice) : null;
+  const profit = sale !== null ? sale - allIn : null;
+  return {costs, costTotal, allIn, sale, profit};
+}
+
+/* ==================== GİRİŞ / ÇIKIŞ ==================== */
+async function doLogin(){
+  const u = document.getElementById('loginUser').value.trim();
+  const p = document.getElementById('loginPass').value;
+  const {data: user} = await sbClient.from('users').select('*')
+      .eq('username', u).eq('password', p).maybeSingle();
+  if(!user){ showLoginMsg('Hatalı kullanıcı adı veya şifre!','err'); return; }
+  session = {username:user.username, role:user.role};
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('whoami').textContent = user.username + ' (' + (user.role==='admin'?'Yönetici':'Kullanıcı') + ')';
+  document.querySelector('button[data-page="partners"]').style.display = user.role==='admin' ? '' : 'none';
+  goPage('vehicles');
+}
+function showLoginMsg(t,type){
+  document.getElementById('loginMsg').innerHTML = '<div class="msg msg-'+type+'">'+esc(t)+'</div>';
+}
+function doLogout(){ session=null; document.getElementById('app').classList.add('hidden'); document.getElementById('loginScreen').classList.remove('hidden'); }
+document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+
+/* ==================== SAYFA YÖNETİMİ ==================== */
+function goPage(page){
+  currentPage = page;
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
+  const c = document.getElementById('pageContent');
+  if(page==='vehicles') renderVehicles(c);
+  else if(page==='addVehicle') renderAddVehicle(c);
+  else if(page==='partners') renderPartners(c);
+  else if(page==='reports') renderReports(c);
+  else if(page.startsWith('detail:')) renderDetail(c, page.split(':')[1]);
+  window.scrollTo(0,0);
+}
+
+/* ==================== ARAÇLAR ==================== */
+function renderVehicles(c){
+  const d = db();
+  let list = d.vehicles;
+  if(filterStatus==='active') list = list.filter(v=>!v.salePrice);
+  if(filterStatus==='sold') list = list.filter(v=>v.salePrice);
+  if(searchText) list = list.filter(v=>(v.plate+v.description).toLowerCase().includes(searchText.toLowerCase()));
+  list = [...list].sort((a,b)=>b.id-a.id);
+
+  c.innerHTML = `
+  <div class="card">
+    <h2>Araç Listesi</h2>
+    <div class="toolbar">
+      <input placeholder="Plaka / açıklama ara..." value="${esc(searchText)}" oninput="searchText=this.value;goPage('vehicles')">
+      <select onchange="filterStatus=this.value;goPage('vehicles')">
+        <option value="all" ${filterStatus==='all'?'selected':''}>Tümü</option>
+        <option value="active" ${filterStatus==='active'?'selected':''}>Satış Bekleyen</option>
+        <option value="sold" ${filterStatus==='sold'?'selected':''}>Satılmış</option>
+      </select>
+    </div>
+    ${list.length===0 ? '<p class="muted">Henüz araç yok. "Araç Ekle" sayfasından ekleyin.</p>' : `
+    <table>
+      <thead><tr><th>Plaka</th><th>Açıklama</th><th>Alış</th><th>Ek Maliyet</th><th>Toplam Maliyet</th><th>Satış</th><th>Kâr</th><th>Durum</th><th></th></tr></thead>
+      <tbody>
+      ${list.map(v=>{
+        const calc = vehicleCalc(v);
+        const profitCls = calc.profit===null?'':(calc.profit>=0?'profit-pos':'profit-neg');
+        return `<tr>
+          <td><b>${esc(v.plate)}</b></td>
+          <td>${esc(v.description)}</td>
+          <td>${fmt(v.purchasePrice)}</td>
+          <td>${fmt(calc.costTotal)}</td>
+          <td><b>${fmt(calc.allIn)}</b></td>
+          <td>${calc.sale===null?'—':fmt(calc.sale)}</td>
+          <td class="${profitCls}">${calc.profit===null?'—':fmt(calc.profit)}</td>
+          <td>${v.salePrice?'<span class="badge badge-green">Satıldı</span>':'<span class="badge badge-orange">Satış Bekliyor</span>'}</td>
+          <td><span class="link" onclick="goPage('detail:${v.id}')">Detay</span></td>
+        </tr>`;
+      }).join('')}
+      </tbody>
+    </table>`}
+  </div>`;
+}
+
+/* ==================== ARAÇ EKLE ==================== */
+function renderAddVehicle(c){
+  c.innerHTML = `
+  <div class="card" style="max-width:560px">
+    <h2>Yeni Araç Ekle</h2>
+    <div id="vMsg"></div>
+    <label>Plaka *</label>
+    <input id="vPlate" placeholder="34 ABC 123">
+    <label>Açıklama</label>
+    <textarea id="vDesc" rows="2" placeholder="Marka, model, yıl, km..."></textarea>
+    <label>Alış Fiyatı (₺) *</label>
+    <input id="vPrice" type="number" min="0" step="0.01" placeholder="0.00">
+    <button class="btn" onclick="addVehicle()">Kaydet</button>
+  </div>`;
+}
+function addVehicle(){
+  const plate = document.getElementById('vPlate').value.trim().toUpperCase();
+  const desc = document.getElementById('vDesc').value.trim();
+  const price = parseFloat(document.getElementById('vPrice').value);
+  if(!plate){ showMsg('vMsg','Plaka zorunludur.','err'); return; }
+  if(isNaN(price) || price<0){ showMsg('vMsg','Geçerli bir alış fiyatı girin.','err'); return; }
+  const d = db();
+  if(d.vehicles.some(v=>v.plate===plate)){ showMsg('vMsg','Bu plaka zaten kayıtlı.','err'); return; }
+  const id = d.vehicles.length? Math.max(...d.vehicles.map(v=>v.id))+1 : 1;
+  d.vehicles.push({id, plate, description:desc, purchasePrice:price, salePrice:null});
+  save(d);
+  goPage('detail:'+id);
+}
+function showMsg(elId, text, type){
+  document.getElementById(elId).innerHTML = '<div class="msg msg-'+type+'">'+esc(text)+'</div>';
+}
+
+/* ==================== ARAÇ DETAY ==================== */
+function renderDetail(c, vid){
+  const v = vehicleById(vid);
+  if(!v){ goPage('vehicles'); return; }
+  const d = db();
+  const calc = vehicleCalc(v);
+  const profitCls = calc.profit===null?'':(calc.profit>=0?'profit-pos':'profit-neg');
+
+  // Kâr dağılımı
+  let distHtml = '';
+  if(calc.profit !== null){
+    distHtml = `
+    <div class="card">
+      <h2>Ortak Alacak Dağılımı</h2>
+      <table><thead><tr><th>Ortak</th><th>Oran</th><th>Ödediği Maliyet (Alacak)</th><th>Kâr Payı</th><th>Toplam Alacağı</th></tr></thead><tbody>
+      ${d.partners.map(p=>{
+        const paid = partnerPaid(v.id, p.id);
+        const share = calc.profit * p.ratio/100;
+        return `<tr>
+          <td>${esc(p.name)}</td><td>%${p.ratio}</td>
+          <td>${paid>0 ? fmt(paid) : '—'}</td>
+          <td class="${calc.profit>=0?'profit-pos':'profit-neg'}">${fmt(share)}</td>
+          <td><b class="${(paid+share)>=0?'profit-pos':'profit-neg'}">${fmt(paid+share)}</b></td>
+        </tr>`;
+      }).join('')}
+      <tr class="total-row"><td>Toplam</td><td>%${d.partners.reduce((s,p)=>s+p.ratio,0)}</td>
+        <td>${fmt(calc.costTotal)}</td><td>${fmt(calc.profit)}</td><td>${fmt(calc.costTotal + calc.profit)}</td></tr>
+      </tbody></table>
+      <p class="muted" style="margin-top:10px">Toplam Alacak = ortağın ödediği maliyetler + kâr payı. Maliyetler zaten kârdan düşüldüğü için ortağa geri ödenir, üzerine kâr payı eklenir.</p>
+    </div>`;
+  }
+
+  c.innerHTML = `
+  <p style="margin-bottom:14px"><span class="link" onclick="goPage('vehicles')">← Araç listesine dön</span></p>
+  <div class="card">
+    <h2>${esc(v.plate)} ${v.salePrice?'<span class="badge badge-green">Satıldı</span>':'<span class="badge badge-orange">Satış Bekliyor</span>'}</h2>
+    <p style="margin-bottom:14px">${esc(v.description)||'<span class=muted>Açıklama yok</span>'}</p>
+    <div class="stat">
+      <div class="stat-box"><div class="num">${fmt(v.purchasePrice)}</div><div class="lbl">Alış Fiyatı</div></div>
+      <div class="stat-box"><div class="num">${fmt(calc.costTotal)}</div><div class="lbl">Ek Maliyetler</div></div>
+      <div class="stat-box"><div class="num">${fmt(calc.allIn)}</div><div class="lbl">Toplam Maliyet</div></div>
+      <div class="stat-box"><div class="num" style="color:${calc.profit===null?'#333':(calc.profit>=0?'#2e7d32':'#c62828')}">${calc.sale===null?'—':fmt(calc.profit)}</div><div class="lbl">Kâr</div></div>
+    </div>
+    <div class="row" style="align-items:flex-end">
+      <div>
+        <label>Satış Fiyatı (₺) ${v.salePrice?'<span class="badge badge-green">Satış yapıldı</span>':''}</label>
+        <input id="salePrice" type="number" min="0" step="0.01" value="${v.salePrice??''}" ${v.salePrice?'disabled':''} placeholder="0.00">
+      </div>
+      <div style="flex:0">
+        ${v.salePrice ? `<button class="btn btn-gray btn-sm" onclick="undoSale(${v.id})">Satışı Geri Al</button>`
+                       : `<button class="btn btn-green" onclick="setSale(${v.id})">Satışı Kaydet</button>`}
+      </div>
+    </div>
+    <div id="saleMsg"></div>
+  </div>
+
+  <div class="card">
+    <h2>Ek Maliyetler</h2>
+    <table>
+      <thead><tr><th>Tarih</th><th>Açıklama</th><th>Ödeyen Ortak</th><th>Tutar</th><th></th></tr></thead>
+      <tbody>
+      ${calc.costs.length===0?'<tr><td colspan="5" class="muted">Maliyet eklenmedi.</td></tr>':
+        calc.costs.map(ct=>`<tr>
+          <td>${esc(ct.date)}</td><td>${esc(ct.description)}</td>
+          <td>${esc(partnerById(ct.paidBy)?.name||'—')}</td><td>${fmt(ct.amount)}</td>
+          <td><span class="link" onclick="deleteCost(${ct.id},${v.id})">Sil</span></td>
+        </tr>`).join('')}
+      <tr class="total-row"><td colspan="3">Toplam</td><td>${fmt(calc.costTotal)}</td><td></td></tr>
+      </tbody>
+    </table>
+
+    <h2 style="margin-top:20px">Yeni Maliyet Ekle</h2>
+    <div id="cMsg"></div>
+    <div class="row">
+      <div><label>Açıklama *</label><input id="cDesc" placeholder="Kaporta, vergi, nakliye..."></div>
+      <div><label>Tutar (₺) *</label><input id="cAmount" type="number" min="0" step="0.01" placeholder="0.00"></div>
+      <div><label>Ödeyen Ortak *</label>
+        <select id="cPayer">${d.partners.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select>
+      </div>
+    </div>
+    <button class="btn" onclick="addCost(${v.id})">Maliyet Ekle</button>
+  </div>
+  ${distHtml}`;
+}
+function setSale(vid){
+  const price = parseFloat(document.getElementById('salePrice').value);
+  if(isNaN(price)||price<0){ showMsg('saleMsg','Geçerli bir satış fiyatı girin.','err'); return; }
+  const d = db();
+  d.vehicles.find(v=>v.id==vid).salePrice = price;
+  save(d); goPage('detail:'+vid);
+}
+function undoSale(vid){
+  const d = db();
+  d.vehicles.find(v=>v.id==vid).salePrice = null;
+  save(d); goPage('detail:'+vid);
+}
+function addCost(vid){
+  const desc = document.getElementById('cDesc').value.trim();
+  const amount = parseFloat(document.getElementById('cAmount').value);
+  const payer = parseInt(document.getElementById('cPayer').value);
+  if(!desc){ showMsg('cMsg','Açıklama zorunludur.','err'); return; }
+  if(isNaN(amount)||amount<=0){ showMsg('cMsg','Geçerli bir tutar girin.','err'); return; }
+  const d = db();
+  const id = d.costs.length? Math.max(...d.costs.map(x=>x.id))+1 : 1;
+  d.costs.push({id, vehicleId:vid, description:desc, amount, paidBy:payer, date:new Date().toLocaleDateString('tr-TR')});
+  save(d); goPage('detail:'+vid);
+}
+function deleteCost(cid, vid){
+  if(!confirm('Bu maliyet silinsin mi?')) return;
+  const d = db();
+  d.costs = d.costs.filter(x=>x.id!==cid);
+  save(d); goPage('detail:'+vid);
+}
+
+/* ==================== ORTAKLAR (Yönetici) ==================== */
+function renderPartners(c){
+  if(session.role!=='admin'){ goPage('vehicles'); return; }
+  const d = db();
+  const total = d.partners.reduce((s,p)=>s+p.ratio,0);
+  c.innerHTML = `
+  <div class="card">
+    <h2>Ortaklar ve Ortaklık Oranları</h2>
+    <div class="progress"><div style="width:${Math.min(total,100)}%"></div></div>
+    <p class="muted" style="margin-bottom:14px">Toplam oran: %${total} ${total===100?'✅':'⚠️ %100 olmalı'}</p>
+    <table>
+      <thead><tr><th>Ortak Adı</th><th>Oran (%)</th><th></th></tr></thead>
+      <tbody>
+      ${d.partners.map(p=>`<tr>
+        <td><b>${esc(p.name)}</b></td>
+        <td>
+          <div class="row" style="align-items:center;gap:8px">
+            <input type="number" min="0" max="100" value="${p.ratio}" style="width:90px;margin:0" id="ratio_${p.id}">
+            <button class="btn btn-sm" onclick="updateRatio(${p.id})">Güncelle</button>
+          </div>
+        </td>
+        <td><span class="link" onclick="deletePartner(${p.id})">Sil</span></td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="card" style="max-width:480px">
+    <h2>Yeni Ortak Ekle</h2>
+    <div id="pMsg"></div>
+    <label>Ortak Adı *</label>
+    <input id="pName" placeholder="Ortak C">
+    <label>Ortaklık Oranı (%) *</label>
+    <input id="pRatio" type="number" min="1" max="100" placeholder="25">
+    <button class="btn" onclick="addPartner()">Ortak Ekle</button>
+  </div>`;
+}
+function addPartner(){
+  const name = document.getElementById('pName').value.trim();
+  const ratio = parseFloat(document.getElementById('pRatio').value);
+  const d = db();
+  const total = d.partners.reduce((s,p)=>s+p.ratio,0);
+  if(!name){ showMsg('pMsg','Ortak adı zorunludur.','err'); return; }
+  if(isNaN(ratio)||ratio<=0){ showMsg('pMsg','Geçerli bir oran girin.','err'); return; }
+  if(total+ratio>100){ showMsg('pMsg',`Toplam oran %100'ü geçemez. Mevcut toplam: %${total}`,'err'); return; }
+  const id = d.partners.length? Math.max(...d.partners.map(p=>p.id))+1 : 1;
+  d.partners.push({id, name, ratio});
+  save(d); goPage('partners');
+}
+function updateRatio(pid){
+  const ratio = parseFloat(document.getElementById('ratio_'+pid).value);
+  const d = db();
+  const totalOthers = d.partners.filter(p=>p.id!=pid).reduce((s,p)=>s+p.ratio,0);
+  if(isNaN(ratio)||ratio<0){ alert('Geçerli bir oran girin.'); return; }
+  if(totalOthers+ratio>100){ alert(`Toplam oran %100'ü geçemez. Bu ortak için en fazla %${100-totalOthers} girilebilir.`); return; }
+  d.partners.find(p=>p.id==pid).ratio = ratio;
+  save(d); goPage('partners');
+}
+function deletePartner(pid){
+  const d = db();
+  if(d.costs.some(c=>c.paidBy==pid)){ alert('Bu ortak maliyet ödemesi yapmış, silinemez.'); return; }
+  if(!confirm('Ortak silinsin mi?')) return;
+  d.partners = d.partners.filter(p=>p.id!=pid);
+  save(d); goPage('partners');
+}
+
+/* ==================== RAPORLAR ==================== */
+function renderReports(c){
+  const d = db();
+  const sold = d.vehicles.filter(v=>v.salePrice);
+  const active = d.vehicles.filter(v=>!v.salePrice);
+  let totPurchase=0, totCost=0, totSale=0, totProfit=0;
+  d.vehicles.forEach(v=>{ const k=vehicleCalc(v); totPurchase+=Number(v.purchasePrice); totCost+=k.costTotal; if(k.sale!==null){totSale+=k.sale; totProfit+=k.profit;} });
+  let rows = [...d.vehicles];
+  if(filterPartner!=='all') rows = rows.filter(v=>vehicleCosts(v.id).some(ct=>ct.paidBy==filterPartner));
+
+  const partnerProfit = {}, partnerCostPaid = {};
+  d.partners.forEach(p=>{partnerProfit[p.id]=0; partnerCostPaid[p.id]=0;});
+  rows.forEach(v=>{
+    const k = vehicleCalc(v);
+    d.partners.forEach(p=>{
+      partnerProfit[p.id]   += k.profit!==null ? k.profit * p.ratio/100 : 0;
+      partnerCostPaid[p.id] += partnerPaid(v.id, p.id);
+    });
+  });
+
+  c.innerHTML = `
+  <div class="stat">
+    <div class="stat-box"><div class="num">${d.vehicles.length}</div><div class="lbl">Toplam Araç</div></div>
+    <div class="stat-box"><div class="num">${active.length}</div><div class="lbl">Satış Bekleyen</div></div>
+    <div class="stat-box"><div class="num">${sold.length}</div><div class="lbl">Satılan</div></div>
+    <div class="stat-box"><div class="num">${fmt(totPurchase+totCost)}</div><div class="lbl">Toplam Maliyet</div></div>
+    <div class="stat-box"><div class="num" style="color:${totProfit>=0?'#2e7d32':'#c62828'}">${fmt(totProfit)}</div><div class="lbl">Toplam Kâr</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Ortak Bazında Alacak Özeti</h2>
+    <table><thead><tr><th>Ortak</th><th>Oran</th><th>Ödediği Maliyet (Alacak)</th><th>Kâr Payı</th><th>Toplam Alacağı</th></tr></thead><tbody>
+    ${d.partners.map(p=>{
+      const total = partnerCostPaid[p.id] + partnerProfit[p.id];
+      return `<tr><td><b>${esc(p.name)}</b></td><td>%${p.ratio}</td>
+        <td>${partnerCostPaid[p.id]>0 ? fmt(partnerCostPaid[p.id]) : '—'}</td>
+        <td class="${partnerProfit[p.id]>=0?'profit-pos':'profit-neg'}">${fmt(partnerProfit[p.id])}</td>
+        <td><b class="${total>=0?'profit-pos':'profit-neg'}">${fmt(total)}</b></td></tr>`;
+    }).join('')}
+    <tr class="total-row"><td>Toplam</td><td></td>
+      <td>${fmt(d.partners.reduce((s,p)=>s+partnerCostPaid[p.id],0))}</td>
+      <td>${fmt(d.partners.reduce((s,p)=>s+partnerProfit[p.id],0))}</td>
+      <td>${fmt(d.partners.reduce((s,p)=>s+partnerCostPaid[p.id]+partnerProfit[p.id],0))}</td></tr>
+    </tbody></table>
+  </div>
+
+  <div class="card">
+    <h2>Toplu Araç Raporu</h2>
+    <div class="toolbar">
+      <select onchange="filterPartner=this.value;goPage('reports')">
+        <option value="all" ${filterPartner==='all'?'selected':''}>Tüm Ortaklar (maliyet ödeyen)</option>
+        ${d.partners.map(p=>`<option value="${p.id}" ${filterPartner==String(p.id)?'selected':''}>${esc(p.name)}</option>`).join('')}
+      </select>
+    </div>
+    <table>
+      <thead><tr><th>Plaka</th><th>Alış</th><th>Ek Maliyet</th><th>Toplam</th><th>Satış</th><th>Kâr</th><th>Durum</th></tr></thead>
+      <tbody>
+      ${rows.length===0?'<tr><td colspan="7" class="muted">Kayıt yok.</td></tr>':rows.map(v=>{
+        const k = vehicleCalc(v);
+        return `<tr>
+          <td><b>${esc(v.plate)}</b></td><td>${fmt(v.purchasePrice)}</td><td>${fmt(k.costTotal)}</td>
+          <td>${fmt(k.allIn)}</td><td>${k.sale===null?'—':fmt(k.sale)}</td>
+          <td class="${k.profit===null?'':(k.profit>=0?'profit-pos':'profit-neg')}">${k.profit===null?'—':fmt(k.profit)}</td>
+          <td>${v.salePrice?'<span class="badge badge-green">Satıldı</span>':'<span class="badge badge-orange">Bekliyor</span>'}</td>
+        </tr>`;
+      }).join('')}
+      <tr class="total-row"><td>Toplam</td><td>${fmt(rows.reduce((s,v)=>s+Number(v.purchasePrice),0))}</td>
+        <td>${fmt(rows.reduce((s,v)=>s+vehicleCalc(v).costTotal,0))}</td>
+        <td>${fmt(rows.reduce((s,v)=>s+vehicleCalc(v).allIn,0))}</td>
+        <td>${fmt(rows.filter(v=>v.salePrice).reduce((s,v)=>s+Number(v.salePrice),0))}</td>
+        <td>${fmt(rows.filter(v=>v.salePrice).reduce((s,v)=>s+vehicleCalc(v).profit,0))}</td><td></td></tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+</script>
+</body>
+</html>
