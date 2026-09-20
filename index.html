@@ -55,6 +55,15 @@
   .progress > div{height:100%;background:var(--primary)}
 </style>
 <base target="_blank">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0d47a1">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script>
 <base target="_blank">
 </head>
 <body>
@@ -123,9 +132,14 @@ async function syncTable(table, rows, idCol){
   if(rows.length) await sbClient.from(table).upsert(rows);
 }
 async function persistStore(d){
-  await syncTable('partners', d.partners, 'id');
-  await syncTable('vehicles', d.vehicles, 'id');
-  await syncTable('costs',    d.costs,    'id');
+  try {
+    await syncTable('partners', d.partners, 'id');
+    await syncTable('vehicles', d.vehicles, 'id');
+    await syncTable('costs',    d.costs,    'id');
+  } catch(e){
+    console.error('Kayıt hatası:', e);
+    alert('Veritabanına kaydedilemedi! SQL kurulumunu çalıştırdığınızdan emin olun. Hata: ' + e.message);
+  }
 }
 
 async function loadStore(){
@@ -152,6 +166,7 @@ async function loadStore(){
   await syncTable('users', store.users, 'id');
   await syncTable('partners', store.partners, 'id');
   dataReady = true;
+  autoLoginIfSession();
   if(typeof goPage==='function') goPage(currentPage);
 }
 function seedDB(){ return store; }
@@ -160,7 +175,16 @@ void loadStore().catch(error=>{
   document.getElementById('loginMsg').innerHTML = '<div class="msg msg-err">Veritabanı bağlantısı kurulamadı. Tabloları oluşturduğunuzdan emin olun.</div>';
 });
 
-let session = null;
+let session = (()=>{ try{ return JSON.parse(localStorage.getItem('otoSession')); }catch(e){ return null; } })();
+// Kayıtlı oturum varsa ve veriler yüklendiyse otomatik giriş yap
+function autoLoginIfSession(){
+  if(!session || !dataReady) return;
+  document.getElementById('loginScreen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.getElementById('whoami').textContent = session.username + ' (' + (session.role==='admin'?'Yönetici':'Kullanıcı') + ')';
+  document.querySelector('button[data-page="partners"]').style.display = session.role==='admin' ? '' : 'none';
+  goPage('vehicles');
+}
 let currentPage = 'vehicles';
 let filterStatus = 'all', filterPartner = 'all', searchText = '';
 
@@ -184,10 +208,12 @@ function vehicleCalc(v){
 async function doLogin(){
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
+  if(!dataReady){ showLoginMsg('Veriler yükleniyor, lütfen bekleyin...','err'); return; }
   const {data: user} = await sbClient.from('users').select('*')
       .eq('username', u).eq('password', p).maybeSingle();
   if(!user){ showLoginMsg('Hatalı kullanıcı adı veya şifre!','err'); return; }
   session = {username:user.username, role:user.role};
+  localStorage.setItem('otoSession', JSON.stringify(session));
   document.getElementById('loginScreen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('whoami').textContent = user.username + ' (' + (user.role==='admin'?'Yönetici':'Kullanıcı') + ')';
@@ -197,7 +223,7 @@ async function doLogin(){
 function showLoginMsg(t,type){
   document.getElementById('loginMsg').innerHTML = '<div class="msg msg-'+type+'">'+esc(t)+'</div>';
 }
-function doLogout(){ session=null; document.getElementById('app').classList.add('hidden'); document.getElementById('loginScreen').classList.remove('hidden'); }
+function doLogout(){ session=null; localStorage.removeItem('otoSession'); document.getElementById('app').classList.add('hidden'); document.getElementById('loginScreen').classList.remove('hidden'); }
 document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 
 /* ==================== SAYFA YÖNETİMİ ==================== */
